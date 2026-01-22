@@ -18,8 +18,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import com.skillpath.model.User;
+import com.skillpath.model.RefreshToken;
 import com.skillpath.repository.UserRepository;
 import com.skillpath.security.jwt.JwtUtils;
+import com.skillpath.security.services.RefreshTokenService;
+import com.skillpath.security.services.UserDetailsImpl;
+
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -31,6 +35,9 @@ public class AuthController {
 
   @Autowired
   UserRepository userRepository;
+  
+  @Autowired
+  RefreshTokenService refreshTokenService;
 
   @Autowired
   PasswordEncoder encoder;
@@ -41,30 +48,30 @@ public class AuthController {
   @PostMapping("/signin")
   public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
 
-    String username = loginRequest.getEmail(); 
-    Optional<User> userOp = userRepository.findByEmail(username);
-    
-    if (userOp.isPresent()) {
-        username = userOp.get().getUsername();
-    }
+      Authentication authentication = authenticationManager.authenticate(
+          new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword()));
+      SecurityContextHolder.getContext().setAuthentication(authentication);
+      
+      UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-    
-    // Generate REAL JWT Token
-    String jwt = jwtUtils.generateJwtToken(authentication);
-    
-    User user = userRepository.findByUsername(username).orElseThrow();
-    List<String> roles = user.getRoles().stream().collect(Collectors.toList());
+      String jwt = jwtUtils.generateJwtToken(userDetails);
+      
+      List<String> roles = userDetails.getAuthorities().stream()
+          .map(item -> item.getAuthority())
+          .collect(Collectors.toList());
 
-    return ResponseEntity.ok(new JwtResponse(jwt, 
-                         user.getId(), 
-                         user.getUsername(), 
-                         user.getEmail(), 
-                         roles,
-                         user.getRoadmapJson()));
+      RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+
+      User user = userRepository.findById(userDetails.getId()).orElseThrow();
+
+      return ResponseEntity.ok(new JwtResponse(jwt, 
+                           refreshToken.getToken(),
+                           user.getId(), 
+                           user.getUsername(), 
+                           user.getEmail(), 
+                           roles,
+                           user.getRoadmapJson()));
   }
 
   @PostMapping("/signup")
@@ -95,12 +102,31 @@ public class AuthController {
     return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
   }
 
+  @PostMapping("/refreshtoken")
+  public ResponseEntity<?> refreshtoken(@RequestBody TokenRefreshRequest request) {
+    String requestRefreshToken = request.getRefreshToken();
+
+    return refreshTokenService.findByToken(requestRefreshToken)
+        .map(refreshTokenService::verifyExpiration)
+        .map(RefreshToken::getUser)
+        .map(user -> {
+          String token = jwtUtils.generateTokenFromUsername(user.getUsername());
+          return ResponseEntity.ok(new TokenRefreshResponse(token, requestRefreshToken));
+        })
+        .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+  }
+
+  @PostMapping("/logout")
+  public ResponseEntity<?> logoutUser(@RequestBody LogoutRequest logoutRequest) {
+    refreshTokenService.deleteByToken(logoutRequest.getRefreshToken());
+    return ResponseEntity.ok(new MessageResponse("Log out successful!"));
+  }
+
   @PostMapping("/forgot-password")
   public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
       Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
       
       if (!userOptional.isPresent()) {
-          // To prevent email enumeration attacks, we send a generic success response even if the user doesn't exist.
           return ResponseEntity.ok(new MessageResponse("If your email exists, a reset link has been sent."));
       }
 
@@ -111,7 +137,6 @@ public class AuthController {
       user.setResetTokenExpiry(LocalDateTime.now().plusHours(1)); // Token is valid for 1 hour
       userRepository.save(user);
 
-      // In a real app, you would email this token. For this demo, we return it.
       return ResponseEntity.ok(new TokenResponse("Reset token generated (Simulated Email)", token));
   }
 
@@ -163,6 +188,29 @@ public class AuthController {
       public Set<String> getRole() { return role; }
       public void setRole(Set<String> role) { this.role = role; }
   }
+  
+  public static class TokenRefreshRequest {
+    private String refreshToken;
+    public String getRefreshToken() { return refreshToken; }
+    public void setRefreshToken(String refreshToken) { this.refreshToken = refreshToken; }
+  }
+
+  public static class TokenRefreshResponse {
+    private String accessToken;
+    private String refreshToken;
+    public TokenRefreshResponse(String accessToken, String refreshToken) {
+      this.accessToken = accessToken;
+      this.refreshToken = refreshToken;
+    }
+    public String getAccessToken() { return accessToken; }
+    public String getRefreshToken() { return refreshToken; }
+  }
+  
+  public static class LogoutRequest {
+    private String refreshToken;
+    public String getRefreshToken() { return refreshToken; }
+    public void setRefreshToken(String refreshToken) { this.refreshToken = refreshToken; }
+  }
 
   public static class ForgotPasswordRequest {
       private String email;
@@ -181,14 +229,16 @@ public class AuthController {
 
   public static class JwtResponse {
       private String token;
+      private String refreshToken;
       private Long id;
       private String username;
       private String email;
       private List<String> roles;
       private String roadmapJson;
 
-      public JwtResponse(String accessToken, Long id, String username, String email, List<String> roles, String roadmapJson) {
+      public JwtResponse(String accessToken, String refreshToken, Long id, String username, String email, List<String> roles, String roadmapJson) {
         this.token = accessToken;
+        this.refreshToken = refreshToken;
         this.id = id;
         this.username = username;
         this.email = email;
@@ -196,6 +246,7 @@ public class AuthController {
         this.roadmapJson = roadmapJson;
       }
       public String getToken() { return token; }
+      public String getRefreshToken() { return refreshToken; }
       public String getUsername() { return username; }
       public String getEmail() { return email; }
       public List<String> getRoles() { return roles; }

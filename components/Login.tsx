@@ -6,30 +6,81 @@ const Login = ({ onLoginSuccess, onSwitchToRegister, onSwitchToForgot }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [formErrors, setFormErrors] = useState({ email: '', password: '' });
+
+  const validateForm = () => {
+    const newErrors = { email: '', password: '' };
+    let isValid = true;
+
+    if (!formData.email) {
+      newErrors.email = 'Email address is required.';
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email address is invalid.';
+      isValid = false;
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
+      isValid = false;
+    }
+
+    setFormErrors(newErrors);
+    return isValid;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
     try {
       const user = await login(formData.email, formData.password);
       onLoginSuccess(user);
-    } catch (err) {
-      setError(err.message || 'Login failed');
+    } catch (err: any) {
+      if (err.response) {
+        // The server responded with a status code that falls out of the range of 2xx
+        setError(err.response.data.message || 'Invalid credentials or server error.');
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('Network Error: Cannot connect to the server. Please ensure it is running.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(`An unexpected error occurred: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
+    }
+    if (error) {
+        setError('');
+    }
+  };
+
   const handleDevLogin = async () => {
     setError('');
+    setFormErrors({ email: '', password: '' });
     setLoading(true);
     try {
       const user = await login('admin@skillpath.com', 'admin123');
       onLoginSuccess(user);
-    } catch (err) {
-      setError(err.message || 'Dev login failed (Ensure backend is running)');
+    } catch (err: any) {
+      if (err.response) {
+        setError(err.response.data.message || 'Dev login failed.');
+      } else {
+        setError('Network Error: Dev login requires the backend to be running.');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,13 +108,14 @@ const Login = ({ onLoginSuccess, onSwitchToRegister, onSwitchToForgot }) => {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
                 type="email"
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                name="email"
+                className={`w-full pl-10 pr-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-emerald-500'}`}
                 placeholder="name@company.com"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={handleChange}
               />
             </div>
+            {formErrors.email && <p className="text-xs text-red-600 mt-1">{formErrors.email}</p>}
           </div>
 
           <div>
@@ -72,13 +124,14 @@ const Login = ({ onLoginSuccess, onSwitchToRegister, onSwitchToForgot }) => {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
                 type="password"
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                name="password"
+                className={`w-full pl-10 pr-4 py-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${formErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 focus:ring-emerald-500'}`}
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={handleChange}
               />
             </div>
+            {formErrors.password && <p className="text-xs text-red-600 mt-1">{formErrors.password}</p>}
           </div>
 
           <div className="flex items-center justify-between text-sm">

@@ -6,6 +6,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com.skillpath.model.User;
 import com.skillpath.repository.UserRepository;
+import com.skillpath.service.UserMetricsService;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+
+import java.security.Principal;
 import java.util.Optional;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -15,9 +22,15 @@ public class UserController {
 
     @Autowired
     UserRepository userRepository;
+    
+    @Autowired
+    UserMetricsService userMetricsService;
 
     @Autowired
     PasswordEncoder encoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest updateRequest) {
@@ -70,8 +83,96 @@ public class UserController {
         
         return ResponseEntity.ok(new MessageResponse("Roadmap updated successfully"));
     }
+    
+    @PostMapping("/complete-activity")
+    public ResponseEntity<?> completeActivity(Principal principal) {
+        userMetricsService.awardXpAndIncrementStreak(principal.getName());
+        return ResponseEntity.ok(new MessageResponse("Activity completed, metrics updated."));
+    }
+
+    @PostMapping("/roadmap/nodes/{nodeId}/complete")
+    public ResponseEntity<?> completeRoadmapNode(@PathVariable String nodeId, Principal principal) {
+        String email = principal.getName();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRoadmapJson() == null || user.getRoadmapJson().isEmpty()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("No roadmap found for user."));
+        }
+
+        try {
+            RoadmapDto roadmap = objectMapper.readValue(user.getRoadmapJson(), RoadmapDto.class);
+            
+            int activeNodeIndex = -1;
+            for (int i = 0; i < roadmap.getNodes().size(); i++) {
+                if (roadmap.getNodes().get(i).getId().equals(nodeId)) {
+                    if (!"active".equals(roadmap.getNodes().get(i).getStatus())) {
+                        return ResponseEntity.badRequest().body(new MessageResponse("Node is not active."));
+                    }
+                    activeNodeIndex = i;
+                    break;
+                }
+            }
+
+            if (activeNodeIndex == -1) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Mark current node as complete
+            roadmap.getNodes().get(activeNodeIndex).setStatus("completed");
+
+            // Mark next node as active
+            if (activeNodeIndex + 1 < roadmap.getNodes().size()) {
+                roadmap.getNodes().get(activeNodeIndex + 1).setStatus("active");
+            }
+
+            String updatedRoadmapJson = objectMapper.writeValueAsString(roadmap);
+            user.setRoadmapJson(updatedRoadmapJson);
+            userRepository.save(user);
+
+            return ResponseEntity.ok(roadmap);
+
+        } catch (JsonProcessingException e) {
+            return ResponseEntity.internalServerError().body(new MessageResponse("Error processing roadmap data."));
+        }
+    }
+
 
     // DTOs
+
+    public static class RoadmapNodeDto {
+        private String id;
+        private String title;
+        private String description;
+        private int estimatedHours;
+        private String status;
+        private List<String> topics;
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public int getEstimatedHours() { return estimatedHours; }
+        public void setEstimatedHours(int estimatedHours) { this.estimatedHours = estimatedHours; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public List<String> getTopics() { return topics; }
+        public void setTopics(List<String> topics) { this.topics = topics; }
+    }
+
+    public static class RoadmapDto {
+        private String title;
+        private String description;
+        private List<RoadmapNodeDto> nodes;
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public List<RoadmapNodeDto> getNodes() { return nodes; }
+        public void setNodes(List<RoadmapNodeDto> nodes) { this.nodes = nodes; }
+    }
+
+
     public static class UserUpdateRequest {
         private String username;
         private String email;

@@ -62,16 +62,18 @@ export const generateCareerRoadmap = async (careerGoal: string): Promise<Roadmap
 export const chatWithTutor = async (history: {role: string, parts: {text: string}[]}[], message: string): Promise<string> => {
   const ai = getAiClient();
   
-  const chat = ai.chats.create({
+  // FIX: Refactored to use generateContent for stateless chat history. This is more aligned with the Gemini API guidelines for this use case than creating a new chat session for each message.
+  const contents = [...history, { role: 'user', parts: [{ text: message }] }];
+
+  const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    history: history,
+    contents: contents,
     config: {
       systemInstruction: "You are an expert technical mentor and career coach named 'SkillPath Bot'. You provide concise, encouraging, and technically accurate advice. You prefer practical examples. Keep responses under 200 words unless asked for deep detail.",
     }
   });
 
-  const result = await chat.sendMessage({ message });
-  return result.text || "I couldn't generate a response.";
+  return response.text || "I couldn't generate a response.";
 };
 
 export const generateLabChallenge = async (topic: string): Promise<{ title: string, description: string, starterCode: string }> => {

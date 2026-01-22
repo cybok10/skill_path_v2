@@ -1,7 +1,8 @@
 import React from 'react';
 import { UserStats, View } from '../types';
-import { Flame, Trophy, Target, ArrowRight, Activity } from 'lucide-react';
+import { Flame, Trophy, Target, ArrowRight, Activity, Zap } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell } from 'recharts';
+import { completeActivity } from '../services/auth';
 
 interface DashboardProps {
   stats: UserStats;
@@ -9,11 +10,21 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, onChangeView }) => {
+
+  const handleCompleteActivity = async () => {
+    try {
+      await completeActivity();
+      // The UI will update via WebSocket, so no local state change is needed here.
+    } catch (error) {
+      console.error("Could not complete activity", error);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Welcome back, Alex! 🚀</h1>
-        <p className="text-slate-500 dark:text-slate-400">You're on a great streak. Keep pushing towards your goal of Senior Backend Engineer.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Welcome back! 🚀</h1>
+        <p className="text-slate-500 dark:text-slate-400">You're on a great streak. Keep pushing towards your goals.</p>
       </header>
 
       {/* Stats Row */}
@@ -96,12 +107,20 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, onChangeView }) => {
             <p className="text-xs text-right text-cyber-accent font-medium mb-6">60% Completed</p>
           </div>
 
-          <button 
-            onClick={() => onChangeView(View.ROADMAP)}
-            className="w-full py-3 bg-cyber-accent hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
-          >
-            Resume Path <ArrowRight size={18} />
-          </button>
+          <div className="space-y-2">
+            <button 
+                onClick={() => onChangeView(View.ROADMAP)}
+                className="w-full py-3 bg-cyber-accent hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+                Resume Path <ArrowRight size={18} />
+            </button>
+            <button 
+                onClick={handleCompleteActivity}
+                className="w-full py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-bold rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+            >
+                <Zap size={16}/> Complete a Lab (+50 XP)
+            </button>
+          </div>
         </div>
 
       </div>

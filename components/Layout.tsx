@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from '../types';
-import { getCurrentUser, logout } from '../services/auth'; 
+import { getCurrentUser } from '../services/auth'; 
 import { useTheme } from '../App';
 import { 
   LayoutDashboard, 
@@ -17,11 +17,12 @@ import {
 
 interface LayoutProps {
   currentView: View;
-  setCurrentView: (view: View) => void;
+  setCurrentView: (view: View | 'PROFILE') => void;
   children: React.ReactNode;
+  onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
+const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const user = getCurrentUser();
   const { theme, toggleTheme } = useTheme();
@@ -42,11 +43,6 @@ const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }
       <span className="font-medium">{label}</span>
     </button>
   );
-
-  const handleLogout = () => {
-    logout();
-    window.location.reload(); 
-  };
 
   return (
     <div className="flex h-screen bg-cyber-900 text-slate-900 dark:text-slate-100 overflow-hidden transition-colors duration-300">
@@ -96,11 +92,11 @@ const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }
             <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
                  {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0" onClick={() => setCurrentView('PROFILE' as any)}>
+            <div className="flex-1 min-w-0" onClick={() => setCurrentView('PROFILE')}>
               <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{user?.username || 'User'}</p>
               <p className="text-xs text-slate-500 truncate capitalize">{user?.roles?.[0] || 'Member'}</p>
             </div>
-            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Logout">
+            <button onClick={onLogout} className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Logout">
                 <LogOut size={18} />
             </button>
           </div>
@@ -142,10 +138,10 @@ const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }
                  <button onClick={toggleTheme} className="flex items-center gap-3 p-2 w-full text-slate-700 dark:text-slate-300 mb-2">
                     {theme === 'dark' ? <Sun size={20}/> : <Moon size={20} />} {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                  </button>
-                 <button onClick={() => setCurrentView('PROFILE' as any)} className="flex items-center gap-3 p-2 w-full text-slate-700 dark:text-slate-300">
+                 <button onClick={() => setCurrentView('PROFILE')} className="flex items-center gap-3 p-2 w-full text-slate-700 dark:text-slate-300">
                     <User size={20} /> Profile
                  </button>
-                 <button onClick={handleLogout} className="flex items-center gap-3 p-2 w-full text-red-600 mt-2">
+                 <button onClick={onLogout} className="flex items-center gap-3 p-2 w-full text-red-600 mt-2">
                     <LogOut size={20} /> Logout
                  </button>
             </div>
