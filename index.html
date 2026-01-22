@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillPath AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        /* Light Mode Defaults */
+        --cyber-900: #f1f5f9; /* Slate 100 - Main Background */
+        --cyber-800: #ffffff; /* White - Card Background */
+        --cyber-700: #e2e8f0; /* Slate 200 - Borders */
+        
+        --text-primary: #0f172a; /* Slate 900 */
+        --text-secondary: #64748b; /* Slate 500 */
+      }
+      
+      .dark {
+        /* Dark Mode Overrides */
+        --cyber-900: #0f172a; /* Slate 900 */
+        --cyber-800: #1e293b; /* Slate 800 */
+        --cyber-700: #334155; /* Slate 700 */
+        
+        --text-primary: #f8fafc; /* Slate 50 */
+        --text-secondary: #94a3b8; /* Slate 400 */
+      }
+
+      body {
+        background-color: var(--cyber-900);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              cyber: {
+                900: 'var(--cyber-900)', 
+                800: 'var(--cyber-800)', 
+                700: 'var(--cyber-700)', 
+                accent: '#059669', // Emerald 600
+                secondary: '#7c3aed', // Violet 600
+              },
+              slate: {
+                // We extend slate to include our variable-based text colors for convenience
+                900: 'var(--text-primary)', // Maps default text to variable
+                500: 'var(--text-secondary)'
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['Fira Code', 'monospace'],
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

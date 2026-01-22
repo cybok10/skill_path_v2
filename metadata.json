@@ -1,0 +1,7 @@
+{
+  "name": "SkillPath AI v2",
+  "description": "A TryHackMe-inspired, AI-powered career mentorship platform. Features personalized roadmaps, AI tutoring, skill analytics, and gamified learning paths.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
